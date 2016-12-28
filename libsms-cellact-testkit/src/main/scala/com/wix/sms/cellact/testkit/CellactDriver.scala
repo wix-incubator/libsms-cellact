@@ -16,27 +16,35 @@ class CellactDriver(port: Int) {
   private val paloParser = new PaloParser
   private val responseParser = new ResponseParser
 
-  def startProbe() {
+  def start() {
     probe.doStart()
   }
 
-  def stopProbe() {
+  def stop() {
     probe.doStop()
   }
 
-  def resetProbe() {
-    probe.handlers.clear()
+  def reset() {
+    probe.reset()
   }
 
-  def aSendPlainFor(credentials: Credentials, source: String, destPhone: String, text: String): SendPlainCtx = {
-    new SendPlainCtx(
+  def aSendPlainFor(credentials: Credentials, source: String, destPhone: String, text: String): SendCtx = {
+    new SendCtx(
       credentials = credentials,
       source = source,
       destPhone = destPhone,
       text = text)
   }
 
-  class SendPlainCtx(credentials: Credentials, source: String, destPhone: String, text: String) {
+  def aSendUnicodeFor(credentials: Credentials, source: String, destPhone: String, text: String): SendCtx = {
+    new SendCtx(
+      credentials = credentials,
+      source = source,
+      destPhone = destPhone,
+      text = text)
+  }
+
+  class SendCtx(credentials: Credentials, source: String, destPhone: String, text: String) {
     private val expectedPalo = CellactHelper.createPalo(
       credentials = credentials,
       sender = source,
@@ -44,7 +52,7 @@ class CellactDriver(port: Int) {
       text = text
     )
 
-    def returns(msgId: String) = {
+    def returns(msgId: String): Unit = {
       val response = new Response
       response.RESULTCODE = ResultCodes.success
       response.RESULTMESSAGE = "Success"
@@ -54,7 +62,7 @@ class CellactDriver(port: Int) {
       returnsXml(responseXml)
     }
 
-    def failsWith(code: String, message: String) = {
+    def failsWith(code: String, message: String): Unit = {
       val response = new Response
       response.RESULTCODE = code
       response.RESULTMESSAGE = message

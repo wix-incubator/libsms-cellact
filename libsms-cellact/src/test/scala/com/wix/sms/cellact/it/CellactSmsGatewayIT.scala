@@ -13,7 +13,7 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
 
   val driver = new CellactDriver(port = cellactPort)
   step {
-    driver.startProbe()
+    driver.start()
   }
 
   sequential
@@ -28,7 +28,8 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
     )
     val someDestPhone = "+12125551234"
     val someSenderPhone = "+12125554321"
-    val someText = "some text"
+    val somePlainText = "some plain text"
+    val someUnicodeText = "some יוניקוד text"
     val someMessageId = "someMessageId"
 
     val cellact: SmsGateway = new CellactSmsGateway(
@@ -37,7 +38,7 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
       credentials = someCredentials
     )
 
-    driver.resetProbe()
+    driver.reset()
   }
 
   "sendPlain" should {
@@ -46,9 +47,9 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
         credentials = someCredentials,
         source = someSenderPhone,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) returns(
-          msgId = someMessageId
+        msgId = someMessageId
       )
 
       cellact.sendPlain(
@@ -56,7 +57,7 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
           phone = Some(someSenderPhone)
         ),
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) must beASuccessfulTry(
         check = ===(someMessageId)
       )
@@ -70,7 +71,7 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
         credentials = someCredentials,
         source = someSenderPhone,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) failsWith(
         code = someReturnCode,
         message = someReturnMessage
@@ -81,7 +82,55 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
           phone = Some(someSenderPhone)
         ),
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
+      ) must beAFailedTry.like {
+        case e: SmsErrorException => e.message must (contain(someReturnCode) and contain(someReturnMessage))
+      }
+    }
+  }
+
+  "sendUnicode" should {
+    "successfully yield a message ID on valid request" in new Ctx {
+      driver.aSendUnicodeFor(
+        credentials = someCredentials,
+        source = someSenderPhone,
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) returns(
+        msgId = someMessageId
+      )
+
+      cellact.sendUnicode(
+        sender = Sender(
+          phone = Some(someSenderPhone)
+        ),
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) must beASuccessfulTry(
+        check = ===(someMessageId)
+      )
+    }
+
+    "gracefully fail on error" in new Ctx {
+      val someReturnCode = "some code"
+      val someReturnMessage = "some message"
+
+      driver.aSendUnicodeFor(
+        credentials = someCredentials,
+        source = someSenderPhone,
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) failsWith(
+        code = someReturnCode,
+        message = someReturnMessage
+      )
+
+      cellact.sendUnicode(
+        sender = Sender(
+          phone = Some(someSenderPhone)
+        ),
+        destPhone = someDestPhone,
+        text = someUnicodeText
       ) must beAFailedTry.like {
         case e: SmsErrorException => e.message must (contain(someReturnCode) and contain(someReturnMessage))
       }
@@ -89,6 +138,6 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
   }
 
   step {
-    driver.stopProbe()
+    driver.stop()
   }
 }

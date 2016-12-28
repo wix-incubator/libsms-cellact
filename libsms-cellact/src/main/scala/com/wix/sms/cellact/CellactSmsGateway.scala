@@ -2,7 +2,7 @@ package com.wix.sms.cellact
 
 import java.io.IOException
 
-import com.google.api.client.http.{GenericUrl, HttpRequestFactory, HttpResponse, UrlEncodedContent}
+import com.google.api.client.http._
 import com.wix.sms.cellact.model._
 import com.wix.sms.model.{Sender, SmsGateway}
 import com.wix.sms.{CommunicationException, SmsErrorException, SmsException}
@@ -25,6 +25,22 @@ class CellactSmsGateway(requestFactory: HttpRequestFactory,
   private val responseParser = new ResponseParser
 
   override def sendPlain(sender: Sender, destPhone: String, text: String): Try[String] = {
+    send(
+      sender = sender,
+      destPhone = destPhone,
+      text = text
+    )
+  }
+
+  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
+    send(
+      sender = sender,
+      destPhone = destPhone,
+      text = text
+    )
+  }
+
+  private def send(sender: Sender, destPhone: String, text: String): Try[String] = {
     Try {
       val palo = CellactHelper.createPalo(
         credentials = credentials,
@@ -49,18 +65,14 @@ class CellactSmsGateway(requestFactory: HttpRequestFactory,
 
       response.RESULTCODE match {
         case ResultCodes.success => response.BLMJ
-        case errorCode => throw new SmsErrorException(message = s"code = $errorCode, message = ${response.RESULTMESSAGE}")
+        case errorCode => throw SmsErrorException(message = s"code = $errorCode, message = ${response.RESULTMESSAGE}")
       }
     } match {
       case Success(blmj) => Success(blmj)
       case Failure(e: SmsException) => Failure(e)
-      case Failure(e: IOException) => Failure(new CommunicationException(e.getMessage, e))
-      case Failure(e) => Failure(new SmsErrorException(e.getMessage, e))
+      case Failure(e: IOException) => Failure(CommunicationException(e.getMessage, e))
+      case Failure(e) => Failure(SmsErrorException(e.getMessage, e))
     }
-  }
-
-  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
-    ???
   }
 
   private def extractAndCloseResponse(httpResponse: HttpResponse): String = {
