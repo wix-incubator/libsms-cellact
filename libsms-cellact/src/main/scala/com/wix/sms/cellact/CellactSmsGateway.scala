@@ -24,8 +24,6 @@ class CellactSmsGateway(requestFactory: HttpRequestFactory,
   private val paloParser = new PaloParser
   private val responseParser = new ResponseParser
 
-  override def getId: String = CellactSmsGateway.id
-
   override def sendPlain(sender: Sender, destPhone: String, text: String): Try[String] = {
     Try {
       val palo = CellactHelper.createPalo(
@@ -61,6 +59,10 @@ class CellactSmsGateway(requestFactory: HttpRequestFactory,
     }
   }
 
+  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
+    ???
+  }
+
   private def extractAndCloseResponse(httpResponse: HttpResponse): String = {
     try {
       httpResponse.parseAsString()
@@ -68,8 +70,4 @@ class CellactSmsGateway(requestFactory: HttpRequestFactory,
       httpResponse.ignore()
     }
   }
-}
-
-object CellactSmsGateway {
-  val id = "il.co.cellact"
 }

@@ -40,12 +40,6 @@ class CellactSmsGatewayIT extends SpecWithJUnit {
     driver.resetProbe()
   }
 
-  "getId" should {
-    "return the ID" in new Ctx {
-      cellact.getId must beEqualTo(CellactSmsGateway.id)
-    }
-  }
-
   "sendPlain" should {
     "successfully yield a message ID on valid request" in new Ctx {
       driver.aSendPlainFor(
