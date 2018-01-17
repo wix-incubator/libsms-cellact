@@ -1,31 +1,40 @@
 package com.wix.sms.cellact.testkit
 
+import java.util.concurrent.atomic.AtomicReference
 import java.util.{List => JList}
 
+import akka.http.scaladsl.model._
 import com.google.api.client.http.UrlEncodedParser
-import com.wix.hoopoe.http.testkit.EmbeddedHttpProbe
+import com.wix.e2e.http.RequestHandler
 import com.wix.sms.cellact.model._
 import com.wix.sms.cellact.{CellactHelper, Credentials}
-import spray.http._
+
+import com.wix.e2e.http.client.extractors.HttpMessageExtractors._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import com.wix.e2e.http.server.WebServerFactory.aMockWebServerWith
 
 class CellactDriver(port: Int) {
-  private val probe = new EmbeddedHttpProbe(port, EmbeddedHttpProbe.NotFoundHandler)
+  private val delegatingHandler: RequestHandler = { case r: HttpRequest => handler.get().apply(r) }
+  private val notFoundHandler: RequestHandler = { case _: HttpRequest => HttpResponse(status = StatusCodes.NotFound) }
+
+  private val handler = new AtomicReference(notFoundHandler)
+
+  private val probe = aMockWebServerWith(delegatingHandler).onPort(port).build
   private val paloParser = new PaloParser
   private val responseParser = new ResponseParser
 
   def start() {
-    probe.doStart()
+    probe.start()
   }
 
   def stop() {
-    probe.doStop()
+    probe.stop()
   }
 
   def reset() {
-    probe.reset()
+    handler.set(notFoundHandler)
   }
 
   def aSendPlainFor(credentials: Credentials, source: String, destPhone: String, text: String): SendCtx = {
@@ -71,8 +80,11 @@ class CellactDriver(port: Int) {
       returnsXml(responseXml)
     }
 
+    private def prependHandler(handle: RequestHandler) =
+      handler.set(handle orElse handler.get())
+
     private def returnsXml(responseXml: String): Unit = {
-      probe.handlers += {
+      prependHandler({
         case HttpRequest(
         HttpMethods.POST,
         Uri.Path("/"),
@@ -82,11 +94,11 @@ class CellactDriver(port: Int) {
           HttpResponse(
             status = StatusCodes.OK,
             entity = HttpEntity(ContentType(MediaTypes.`text/xml`, HttpCharsets.`UTF-8`), responseXml))
-      }
+      })
     }
 
     private def isStubbedRequestEntity(entity: HttpEntity): Boolean = {
-      val requestParams = urlDecode(entity.asString)
+      val requestParams = urlDecode(entity.extractAsString)
 
       val requestXml = requestParams(Fields.xmlString)
       val palo = paloParser.parse(requestXml)
